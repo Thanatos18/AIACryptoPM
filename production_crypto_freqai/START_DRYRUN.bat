@@ -1,0 +1,77 @@
+@echo off
+SETLOCAL EnableDelayedExpansion
+chcp 65001 >nul 2>&1
+
+TITLE FreqTrade One-Click Dry-Run (FreqAI ML)
+
+:: One-click dry-run launcher:
+::   1. Turn on WARP (or ensure Binance is reachable)
+::   2. Double-click this file
+::   3. Bot downloads data, trains FreqAI models, and starts paper trading
+
+cd /d "%~dp0"
+
+ECHO =====================================================================
+ECHO  FreqTrade + FreqAI -- ONE-CLICK DRY-RUN
+ECHO  Simulated wallet: $10,000 USDT -- Timeframe: 15m
+ECHO  Pairs: BTC, ETH, SOL, LINK, AVAX, BNB -- Model: LightGBMRegressorCPU
+ECHO =====================================================================
+ECHO.
+ECHO  Step 1: Enable WARP (or your VPN) so Binance data can be fetched.
+ECHO  Step 2: This script will download data, then start paper trading.
+ECHO.
+
+IF NOT EXIST ".venv\Scripts\activate.bat" (
+    ECHO [!] Virtual environment not found. Run setup first:
+    ECHO     python -m venv .venv
+    ECHO     .venv\Scripts\pip install -r requirements.txt
+    PAUSE
+    EXIT /B 1
+)
+
+ECHO [i] Activating Python virtual environment...
+CALL .venv\Scripts\activate.bat
+
+IF NOT EXIST "user_data\logs" MKDIR "user_data\logs"
+IF NOT EXIST "user_data\models" MKDIR "user_data\models"
+IF NOT EXIST "user_data\data" MKDIR "user_data\data"
+IF NOT EXIST "user_data\freqai_models" MKDIR "user_data\freqai_models"
+
+SET PYTHONIOENCODING=utf-8
+SET PYTHONUTF8=1
+
+SET CONFIG_ARGS=-c config.json -c freqai_config.json --user-data-dir user_data
+SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data\strategies --freqaimodel LightGBMRegressorCPU --freqaimodel-path user_data\freqai_models
+
+ECHO.
+ECHO [i] Downloading / updating market data (60 days, 15m + 1h)...
+ECHO [i] If this step hangs, confirm WARP is connected.
+ECHO.
+
+freqtrade download-data %CONFIG_ARGS% --exchange binance --pairs BTC/USDT ETH/USDT SOL/USDT LINK/USDT AVAX/USDT BNB/USDT --timeframes 15m 1h --days 60 --prepend
+
+IF ERRORLEVEL 1 (
+    ECHO.
+    ECHO [!] Data download failed. Check WARP/network, then re-run this script.
+    ECHO [!] Attempting to start bot with any existing local data...
+    ECHO.
+    TIMEOUT /T 5 /NOBREAK >nul
+)
+
+ECHO.
+ECHO [i] Starting FreqTrade Dry-Run and Streamlit Analytics in separate windows...
+ECHO.
+ECHO [i] FreqUI Dashboard: http://127.0.0.1:8080/
+ECHO [i] Login: freqtrader / ProductionHighlySecurePassword2026!
+ECHO.
+
+:: Start FreqTrade in a separate window
+START "FreqTrade Bot (Dry-Run)" cmd /k "freqtrade trade %CONFIG_ARGS% %TRADE_ARGS% --dry-run --dry-run-wallet 10000"
+
+:: Start Streamlit Analytics Dashboard in a separate window
+START "Streamlit Analytics Dashboard" cmd /k "streamlit run scripts/cpu_analytics_dashboard.py"
+
+ECHO [✔] Both services launched successfully!
+ECHO [i] You can close this window now. Both FreqTrade and Streamlit will continue running.
+ECHO.
+PAUSE

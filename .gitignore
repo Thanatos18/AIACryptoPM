@@ -1,0 +1,30 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# SQLite databases and WAL files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Log files
+*.log
+**/user_data/logs/
+
+# Freqtrade/FreqAI runtime data and models
+**/user_data/data/
+**/user_data/models/
+**/user_data/backtesting_results/
+**/user_data/hyperopts/
+**/user_data/plots/
