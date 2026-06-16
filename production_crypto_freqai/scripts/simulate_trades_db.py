@@ -61,8 +61,8 @@ def simulate_feature_importances() -> None:
 
 
 def simulate_trades_database() -> None:
-    """Constructs a fully functional FreqTrade SQLite database (tradesv3.sqlite)."""
-    db_path = Path("tradesv3.sqlite")
+    """Constructs a fully functional FreqTrade SQLite database (tradesv3.demo.sqlite)."""
+    db_path = Path("tradesv3.demo.sqlite")
     
     # Remove existing demo DB if present
     if db_path.exists():
@@ -213,12 +213,12 @@ def simulate_trades_database() -> None:
     conn.commit()
     conn.close()
     
-    logger.info(f"Successfully populated 'tradesv3.sqlite' with {trade_id - 1} simulated executions.")
+    logger.info(f"Successfully populated 'tradesv3.demo.sqlite' with {trade_id - 1} simulated executions.")
     logger.info(f"Simulated Ending Capital: ~{total_capital:.2f} USDT")
 
 
 if __name__ == "__main__":
     simulate_feature_importances()
     simulate_trades_database()
-    print("\n[✔] Simulation DB successfully compiled. You can now execute:")
-    print("    streamlit run scripts/cpu_analytics_dashboard.py")
+    print("\n[SUCCESS] Simulation DB successfully compiled. You can now execute:")
+    print("    streamlit run scripts/cpu_analytics_dashboard.py -- --demo")

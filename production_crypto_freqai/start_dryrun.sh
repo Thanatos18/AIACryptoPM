@@ -6,6 +6,11 @@
 
 set -e
 
+export OMP_NUM_THREADS=4
+export OPENBLAS_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export NUMEXPR_NUM_THREADS=4
+
 cd "$(dirname "$0")"
 
 echo "====================================================================="
@@ -32,7 +37,7 @@ export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 
 CONFIG_ARGS="-c config.json -c freqai_config.json --user-data-dir user_data"
-TRADE_ARGS="--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data/strategies --freqaimodel LightGBMRegressorCPU --freqaimodel-path user_data/freqai_models"
+TRADE_ARGS="--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data/strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data/freqai_models"
 
 echo ""
 echo "[i] Downloading / updating market data (60 days, 15m + 1h)..."

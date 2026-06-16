@@ -2,6 +2,11 @@
 SETLOCAL EnableDelayedExpansion
 chcp 65001 >nul 2>&1
 
+SET OMP_NUM_THREADS=4
+SET OPENBLAS_NUM_THREADS=4
+SET MKL_NUM_THREADS=4
+SET NUMEXPR_NUM_THREADS=4
+
 TITLE FreqTrade One-Click Dry-Run (FreqAI ML)
 
 :: One-click dry-run launcher:
@@ -14,7 +19,7 @@ cd /d "%~dp0"
 ECHO =====================================================================
 ECHO  FreqTrade + FreqAI -- ONE-CLICK DRY-RUN
 ECHO  Simulated wallet: $10,000 USDT -- Timeframe: 15m
-ECHO  Pairs: BTC, ETH, SOL, LINK, AVAX, BNB -- Model: LightGBMRegressorCPU
+ECHO  Pairs: BTC, ETH, SOL, LINK, AVAX, BNB -- Model: LightGBMClassifierCPU
 ECHO =====================================================================
 ECHO.
 ECHO  Step 1: Enable WARP (or your VPN) so Binance data can be fetched.
@@ -41,7 +46,7 @@ SET PYTHONIOENCODING=utf-8
 SET PYTHONUTF8=1
 
 SET CONFIG_ARGS=-c config.json -c freqai_config.json --user-data-dir user_data
-SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data\strategies --freqaimodel LightGBMRegressorCPU --freqaimodel-path user_data\freqai_models
+SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data\strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data\freqai_models
 
 ECHO.
 ECHO [i] Downloading / updating market data (60 days, 15m + 1h)...

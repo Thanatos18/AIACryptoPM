@@ -48,7 +48,6 @@ class CatBoostRegressorCPU(BaseRegressor):
             raise ImportError("CatBoost is not installed. Please install it via 'pip install catboost'.")
 
         logger.info("Initiating CatBoost CPU training cycle...")
-        gc.collect()
 
         X_train: pd.DataFrame = data_dictionary["train_features"]
         y_train: pd.Series = data_dictionary["train_labels"]
@@ -100,18 +99,33 @@ class CatBoostRegressorCPU(BaseRegressor):
                 sorted_feats = dict(sorted(feat_dict.items(), key=lambda item: item[1], reverse=True))
                 self.feature_importances_ = sorted_feats
                 
-                if hasattr(dk, "data_path"):
-                    model_dir = Path(dk.data_path)
-                else:
-                    model_dir = Path("user_data/models")
-                model_dir.mkdir(parents=True, exist_ok=True)
+                # Save to user_data/models/ for Streamlit analytics dashboard
+                parent_models_dir = Path("user_data/models")
+                parent_models_dir.mkdir(parents=True, exist_ok=True)
                 
                 pair_id = dk.pair.replace("/", "_") if hasattr(dk, "pair") else "general"
-                dump_path = model_dir / f"catboost_feature_importance_{pair_id}.json"
                 
+                import time
+                timestamp = int(time.time())
+                if hasattr(dk, "data_path") and "_" in dk.data_path:
+                    try:
+                        timestamp = int(dk.data_path.split("_")[-1])
+                    except ValueError:
+                        pass
+
+                dump_path = parent_models_dir / f"catboost_feature_importance_{pair_id}_{timestamp}.json"
                 with open(dump_path, "w") as f:
                     json.dump(sorted_feats, f, indent=4)
                 logger.info(f"Persisted CatBoost top feature importances to {dump_path}")
+                
+                # Prune old feature importance files in user_data/models
+                try:
+                    importance_files = sorted(parent_models_dir.glob(f"catboost_feature_importance_{pair_id}_*.json"),
+                                              key=lambda p: p.stat().st_mtime, reverse=True)
+                    for old in importance_files[3:]:        # keep most recent 3
+                        old.unlink(missing_ok=True)
+                except Exception as ex:
+                    logger.warning(f"Could not purge old feature importance files: {ex}")
         except Exception as e:
             logger.error(f"Failed to serialize CatBoost feature importances: {e}", exc_info=True)
 

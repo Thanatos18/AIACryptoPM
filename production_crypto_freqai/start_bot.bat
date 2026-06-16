@@ -2,6 +2,11 @@
 SETLOCAL EnableDelayedExpansion
 chcp 65001 >nul 2>&1
 
+SET OMP_NUM_THREADS=4
+SET OPENBLAS_NUM_THREADS=4
+SET MKL_NUM_THREADS=4
+SET NUMEXPR_NUM_THREADS=4
+
 TITLE Production FreqTrade + FreqAI Trading System (16GB RAM CPU Optimized)
 
 :: Usage:
@@ -14,7 +19,7 @@ cd /d "%~dp0"
 
 SET MODE=DRY_RUN
 SET CONFIG_ARGS=-c config.json -c freqai_config.json
-SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data\strategies --freqaimodel LightGBMRegressorCPU --freqaimodel-path user_data\freqai_models
+SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data\strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data\freqai_models
 
 IF "%~1"=="--live" (
     SET MODE=LIVE

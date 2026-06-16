@@ -61,8 +61,8 @@
     },
     "telegram": {
         "enabled": true,
-        "token": "8743808585:AAGkLyVbn8ZQC_jqCll4l0V0VnwyChceQxA",
-        "chat_id": "7428221822",
+        "token": "YOUR_TELEGRAM_BOT_TOKEN_PLACEHOLDER",
+        "chat_id": "YOUR_TELEGRAM_CHAT_ID_PLACEHOLDER",
         "notification_settings": {
             "status": "on",
             "warning": "on",

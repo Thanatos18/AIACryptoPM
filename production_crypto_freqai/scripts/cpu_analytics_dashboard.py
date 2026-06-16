@@ -10,6 +10,7 @@ Designed to execute smoothly on local Windows laptops without spiking RAM usage.
 
 import json
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
@@ -18,6 +19,9 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+# Parse CLI args for database file selection
+default_db = "tradesv3.demo.sqlite" if "--demo" in sys.argv else "tradesv3.sqlite"
 
 # Streamlit Page Setup
 st.set_page_config(
@@ -44,7 +48,7 @@ st.markdown("""
 
 
 @st.cache_data(ttl=60)
-def load_trades_data(db_path: str = "tradesv3.sqlite") -> pd.DataFrame:
+def load_trades_data(db_path: str = "tradesv3.sqlite", limit_30_days: bool = True) -> pd.DataFrame:
     """Safely loads closed trade history from FreqTrade SQLite database."""
     path = Path(db_path)
     if not path.exists():
@@ -55,12 +59,18 @@ def load_trades_data(db_path: str = "tradesv3.sqlite") -> pd.DataFrame:
 
     try:
         conn = sqlite3.connect(path)
-        query = """
-            SELECT id, exchange, pair, is_open, fee_open_cost, fee_close_cost,
-                   open_rate, close_rate, close_profit, close_profit_abs,
-                   stake_amount, amount, open_date, close_date, exit_reason,
-                   strategy, timeframe, is_short
+        
+        # Build query: limit to last 30 days if limit_30_days is True
+        where_clause = ""
+        if limit_30_days:
+            where_clause = "WHERE (close_date IS NULL) OR (close_date >= datetime('now', '-30 days'))"
+            
+        query = f"""
+            SELECT id, exchange, pair, is_open, open_rate, close_rate,
+                   close_profit, close_profit_abs, stake_amount,
+                   open_date, close_date, exit_reason, is_short
             FROM trades
+            {where_clause}
             ORDER BY open_date ASC
         """
         df = pd.read_sql_query(query, conn)
@@ -71,6 +81,11 @@ def load_trades_data(db_path: str = "tradesv3.sqlite") -> pd.DataFrame:
             df["close_date"] = pd.to_datetime(df["close_date"])
             df["trade_duration_min"] = (df["close_date"] - df["open_date"]).dt.total_seconds() / 60.0
             
+            # Downcast to float32 to conserve memory
+            for col in ["open_rate", "close_rate", "close_profit", "close_profit_abs", "stake_amount"]:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], downcast="float")
+            
         return df
     except Exception as e:
         st.error(f"Error loading SQLite database: {e}")
@@ -79,7 +94,7 @@ def load_trades_data(db_path: str = "tradesv3.sqlite") -> pd.DataFrame:
 
 @st.cache_data(ttl=60)
 def load_feature_importances() -> Dict[str, Dict[str, float]]:
-    """Loads FreqAI LightGBM/CatBoost serialized feature importance files."""
+    """Loads FreqAI LightGBM/CatBoost serialized feature importance files recursively."""
     models_dir = Path("user_data/models")
     if not models_dir.exists():
         models_dir = Path("production_crypto_freqai/user_data/models")
@@ -87,15 +102,41 @@ def load_feature_importances() -> Dict[str, Dict[str, float]]:
             return {}
 
     importance_data = {}
-    for json_file in models_dir.glob("feature_importance_*.json"):
-        pair_name = json_file.stem.replace("feature_importance_", "").replace("_", "/")
-        try:
-            with open(json_file, "r") as f:
-                importance_data[pair_name] = json.load(f)
-        except Exception:
-            continue
+    # Glob both LightGBM and CatBoost files recursively
+    patterns = ["**/feature_importance_*.json", "**/catboost_feature_importance_*.json"]
+    
+    for pattern in patterns:
+        for json_file in models_dir.glob(pattern):
+            stem = json_file.stem
             
-    return importance_data
+            # Remove prefix
+            if stem.startswith("catboost_feature_importance_"):
+                clean_stem = stem.replace("catboost_feature_importance_", "")
+            else:
+                clean_stem = stem.replace("feature_importance_", "")
+            
+            # Parse timestamp if present (e.g. BTC_USDT_1781409747 -> BTC_USDT)
+            parts = clean_stem.split("_")
+            if len(parts) > 1 and parts[-1].isdigit():
+                parts = parts[:-1]
+            
+            pair_name = "/".join(parts) # Map BTC_USDT back to BTC/USDT
+            if not pair_name:
+                continue
+
+            try:
+                mtime = json_file.stat().st_mtime
+                # Only keep the most recent file per pair
+                if pair_name not in importance_data or mtime > importance_data[pair_name]["mtime"]:
+                    with open(json_file, "r") as f:
+                        importance_data[pair_name] = {
+                            "data": json.load(f),
+                            "mtime": mtime
+                        }
+            except Exception:
+                continue
+                
+    return {k: v["data"] for k, v in importance_data.items()}
 
 
 def compute_drawdown(equity_series: pd.Series) -> Tuple[pd.Series, float]:
@@ -111,11 +152,19 @@ def render_dashboard() -> None:
     st.title("⚡ FreqTrade + FreqAI Production Analytics Dashboard")
     st.markdown("Real-time telemetry, quantitative portfolio tracking, and machine learning model explainability.")
 
+    # Sidebar settings
+    st.sidebar.title("Telemetry Settings")
+    show_full_history = st.sidebar.checkbox(
+        "Show full trade history", 
+        value=False, 
+        help="If unchecked, loads only the last 30 days of closed trades to conserve memory."
+    )
+
     # Load Telemetry
-    df = load_trades_data()
+    df = load_trades_data(default_db, limit_30_days=not show_full_history)
 
     if df.empty:
-        st.warning("⚠️ No trades found in 'tradesv3.sqlite'. Please execute `python scripts/simulate_trades_db.py` to compile demo executions.")
+        st.warning(f"⚠️ No trades found in '{default_db}'. Please execute `python scripts/simulate_trades_db.py` to compile demo executions.")
         return
 
     # Split open vs closed trades

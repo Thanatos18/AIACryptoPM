@@ -7,11 +7,16 @@
 
 set -e
 
+export OMP_NUM_THREADS=4
+export OPENBLAS_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export NUMEXPR_NUM_THREADS=4
+
 cd "$(dirname "$0")"
 
 MODE="DRY_RUN"
 CONFIG_ARGS="-c config.json -c freqai_config.json"
-TRADE_ARGS="--strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data/strategies --freqaimodel LightGBMRegressorCPU --freqaimodel-path user_data/freqai_models"
+TRADE_ARGS="--strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data/strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data/freqai_models"
 
 for arg in "$@"; do
     if [ "$arg" == "--live" ]; then
