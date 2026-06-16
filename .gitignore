@@ -28,3 +28,6 @@ dist/
 **/user_data/backtesting_results/
 **/user_data/hyperopts/
 **/user_data/plots/
+
+# Local configuration overrides (secrets/Telegram tokens)
+**/config.local.json

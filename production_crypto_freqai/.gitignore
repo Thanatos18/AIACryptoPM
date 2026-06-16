@@ -11,3 +11,6 @@ user_data/logs/*.log.*
 
 # Optional: uncomment to ignore local trade DB between clean dry-run sessions
 # tradesv3.sqlite
+
+# Local configuration overrides (secrets/Telegram tokens)
+config.local.json

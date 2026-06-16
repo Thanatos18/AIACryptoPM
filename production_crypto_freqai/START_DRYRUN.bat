@@ -46,6 +46,9 @@ SET PYTHONIOENCODING=utf-8
 SET PYTHONUTF8=1
 
 SET CONFIG_ARGS=-c config.json -c freqai_config.json --user-data-dir user_data
+IF EXIST config.local.json (
+    SET CONFIG_ARGS=!CONFIG_ARGS! -c config.local.json
+)
 SET TRADE_ARGS=--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data\strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data\freqai_models
 
 ECHO.

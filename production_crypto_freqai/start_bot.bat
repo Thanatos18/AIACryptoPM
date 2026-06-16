@@ -26,6 +26,10 @@ IF "%~1"=="--live" (
     SET CONFIG_ARGS=-c config.json -c freqai_config.json -c config.live.json
 )
 
+IF EXIST config.local.json (
+    SET CONFIG_ARGS=!CONFIG_ARGS! -c config.local.json
+)
+
 ECHO =====================================================================
 ECHO  Production Crypto Trading System (FreqTrade + FreqAI)
 ECHO  Mode: %MODE%

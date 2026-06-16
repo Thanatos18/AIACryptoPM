@@ -25,6 +25,10 @@ for arg in "$@"; do
     fi
 done
 
+if [ -f config.local.json ]; then
+    CONFIG_ARGS="$CONFIG_ARGS -c config.local.json"
+fi
+
 echo "====================================================================="
 echo " Production Crypto Trading System (FreqTrade + FreqAI)"
 echo " Mode: $MODE"

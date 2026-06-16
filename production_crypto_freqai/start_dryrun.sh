@@ -37,6 +37,9 @@ export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 
 CONFIG_ARGS="-c config.json -c freqai_config.json --user-data-dir user_data"
+if [ -f config.local.json ]; then
+    CONFIG_ARGS="$CONFIG_ARGS -c config.local.json"
+fi
 TRADE_ARGS="--strategy FreqAiAdaptiveRollingStrategy --strategy-path user_data/strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data/freqai_models"
 
 echo ""
