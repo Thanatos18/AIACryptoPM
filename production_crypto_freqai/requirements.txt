@@ -6,12 +6,12 @@ freqtrade>=2025.1,<2026.6
 ccxt>=4.3.0,<5.0
 
 # Data / numerical
-numpy>=1.24,<2.0
-pandas>=2.0,<2.3
-scipy>=1.10,<1.14
+numpy>=1.24,<3.0
+pandas>=2.0,<4.0
+scipy>=1.10,<2.0
 
 # Indicators
-TA-Lib>=0.4.28,<0.5
+TA-Lib>=0.4.28,<0.5; sys_platform != 'win32'
 ta>=0.11.0,<0.12
 
 # ML
