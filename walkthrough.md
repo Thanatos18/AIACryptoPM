@@ -15,7 +15,6 @@ This is a **FreqTrade + FreqAI** automated crypto trading system using an **adap
 | [CatBoostRegressorCPU.py](file:///c:/Users/User/Documents/AI%20for%20Trading/AIArenaCryptoPM/production_crypto_freqai/user_data/freqai_models/CatBoostRegressorCPU.py) | Alternative CatBoost model |
 | [start_bot.bat](file:///c:/Users/User/Documents/AI%20for%20Trading/AIArenaCryptoPM/production_crypto_freqai/start_bot.bat) | Windows launcher script |
 | [cpu_analytics_dashboard.py](file:///c:/Users/User/Documents/AI%20for%20Trading/AIArenaCryptoPM/production_crypto_freqai/scripts/cpu_analytics_dashboard.py) | Streamlit analytics dashboard |
-| [simulate_trades_db.py](file:///c:/Users/User/Documents/AI%20for%20Trading/AIArenaCryptoPM/production_crypto_freqai/scripts/simulate_trades_db.py) | Generates fake trade DB for dashboard testing |
 
 ### How the ML Pipeline Works
 
@@ -100,14 +99,11 @@ http://127.0.0.1:8080/
 - **Username**: `freqtrader`
 - **Password**: `ProductionHighlySecurePassword2026!`
 
-### Step 6: (Optional) Run the Analytics Dashboard
+### Step 6: Run the Analytics Dashboard
 
 In a separate terminal:
 ```powershell
-# First, generate sample data to test the dashboard
-python scripts/simulate_trades_db.py
-
-# Then launch the dashboard
+# Launch the dashboard
 streamlit run scripts/cpu_analytics_dashboard.py
 ```
 

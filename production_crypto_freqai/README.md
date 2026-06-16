@@ -40,8 +40,7 @@ production_crypto_freqai/
 │   └── Windows_WSL2_Setup_Guide.md                  <- Definitive step-by-step setup guide for Windows/WSL2 and BotFather
 │
 ├── scripts/
-│   ├── cpu_analytics_dashboard.py              <- Streamlit interactive supplementary quant analytics app
-│   └── simulate_trades_db.py                   <- Database simulator to instantly verify analytics visualizations
+│   └── cpu_analytics_dashboard.py              <- Streamlit interactive supplementary quant analytics app
 │
 └── user_data/
     ├── freqai_models/
@@ -71,12 +70,7 @@ For detailed, operating-system-specific installation commands (including configu
    pip install -r requirements.txt
    ```
 
-2. **Run the Database Simulator** *(Optional but highly recommended to test your analytics visualizer instantly)*:
-   ```bash
-   python scripts/simulate_trades_db.py
-   ```
-
-3. **Start the Automated Trading System in Safe Dry-Run Mode**:
+2. **Start the Automated Trading System in Safe Dry-Run Mode**:
    Launch the system to execute simulated paper-trading against live Binance / Kraken WebSocket orderbooks.
    * **On WSL2 / Linux**:
      ```bash
@@ -88,7 +82,7 @@ For detailed, operating-system-specific installation commands (including configu
      start_bot.bat
      ```
 
-4. **Access Built-in Web Visualizers**:
+3. **Access Built-in Web Visualizers**:
    * **FreqUI Dashboard**: Open your web browser and navigate to `http://127.0.0.1:8080/` (Login: `freqtrader` / Password: `ProductionHighlySecurePassword2026!`).
    * **Supplementary CPU Analytics App**: Open a new terminal, activate your virtual environment, and run:
      ```bash

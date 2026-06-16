@@ -21,7 +21,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 # Parse CLI args for database file selection
-default_db = "tradesv3.demo.sqlite" if "--demo" in sys.argv else "tradesv3.sqlite"
+default_db = "tradesv3.sqlite"
 
 # Streamlit Page Setup
 st.set_page_config(
@@ -164,7 +164,7 @@ def render_dashboard() -> None:
     df = load_trades_data(default_db, limit_30_days=not show_full_history)
 
     if df.empty:
-        st.warning(f"⚠️ No trades found in '{default_db}'. Please execute `python scripts/simulate_trades_db.py` to compile demo executions.")
+        st.warning(f"⚠️ No trades found in '{default_db}'. Please ensure your FreqTrade bot is running and trading to populate the database.")
         return
 
     # Split open vs closed trades
