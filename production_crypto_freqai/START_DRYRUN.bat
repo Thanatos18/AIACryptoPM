@@ -74,10 +74,10 @@ ECHO [i] Login: freqtrader / ProductionHighlySecurePassword2026!
 ECHO.
 
 :: Start FreqTrade in a separate window
-START "FreqTrade Bot (Dry-Run)" cmd /k "freqtrade trade %CONFIG_ARGS% %TRADE_ARGS% --dry-run --dry-run-wallet 10000"
+START "FreqTrade Bot (Dry-Run)" cmd /k "CALL .venv\Scripts\activate.bat && freqtrade trade !CONFIG_ARGS! !TRADE_ARGS! --dry-run --dry-run-wallet 10000"
 
 :: Start Streamlit Analytics Dashboard in a separate window
-START "Streamlit Analytics Dashboard" cmd /k "streamlit run scripts/cpu_analytics_dashboard.py"
+START "Streamlit Analytics Dashboard" cmd /k "CALL .venv\Scripts\activate.bat && streamlit run scripts/cpu_analytics_dashboard.py"
 
 ECHO [✔] Both services launched successfully!
 ECHO [i] You can close this window now. Both FreqTrade and Streamlit will continue running.
