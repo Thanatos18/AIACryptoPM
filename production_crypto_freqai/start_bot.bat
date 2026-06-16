@@ -56,11 +56,11 @@ SET PYTHONUTF8=1
 IF "%MODE%"=="LIVE" (
     ECHO [!] WARNING: LIVE trading mode — real capital at risk!
     ECHO [!] Ensure exchange API keys in config.json are correct.
-    freqtrade trade %CONFIG_ARGS% %TRADE_ARGS%
+    python -m freqtrade trade %CONFIG_ARGS% %TRADE_ARGS%
 ) ELSE (
     ECHO [i] DRY-RUN mode — simulated trades only.
     ECHO [i] Tip: use START_DRYRUN.bat for one-click data download + dry-run.
-    freqtrade trade %CONFIG_ARGS% %TRADE_ARGS% --dry-run --dry-run-wallet 10000
+    python -m freqtrade trade %CONFIG_ARGS% %TRADE_ARGS% --dry-run --dry-run-wallet 10000
 )
 
 PAUSE

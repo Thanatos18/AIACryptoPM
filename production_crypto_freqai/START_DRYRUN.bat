@@ -56,7 +56,7 @@ ECHO [i] Downloading / updating market data (60 days, 15m + 1h)...
 ECHO [i] If this step hangs, confirm WARP is connected.
 ECHO.
 
-freqtrade download-data %CONFIG_ARGS% --exchange binance --pairs BTC/USDT ETH/USDT SOL/USDT LINK/USDT AVAX/USDT BNB/USDT --timeframes 15m 1h --days 60 --prepend
+python -m freqtrade download-data %CONFIG_ARGS% --exchange binance --pairs BTC/USDT ETH/USDT SOL/USDT LINK/USDT AVAX/USDT BNB/USDT --timeframes 15m 1h --days 60 --prepend
 
 IF ERRORLEVEL 1 (
     ECHO.
@@ -74,10 +74,10 @@ ECHO [i] Login: freqtrader / ProductionHighlySecurePassword2026!
 ECHO.
 
 :: Start FreqTrade in a separate window
-START "FreqTrade Bot (Dry-Run)" cmd /k "CALL .venv\Scripts\activate.bat && freqtrade trade !CONFIG_ARGS! !TRADE_ARGS! --dry-run --dry-run-wallet 10000"
+START "FreqTrade Bot (Dry-Run)" cmd /k "CALL .venv\Scripts\activate.bat && python -m freqtrade trade !CONFIG_ARGS! !TRADE_ARGS! --dry-run --dry-run-wallet 10000"
 
 :: Start Streamlit Analytics Dashboard in a separate window
-START "Streamlit Analytics Dashboard" cmd /k "CALL .venv\Scripts\activate.bat && streamlit run scripts/cpu_analytics_dashboard.py"
+START "Streamlit Analytics Dashboard" cmd /k "CALL .venv\Scripts\activate.bat && python -m streamlit run scripts/cpu_analytics_dashboard.py"
 
 ECHO [✔] Both services launched successfully!
 ECHO [i] You can close this window now. Both FreqTrade and Streamlit will continue running.

@@ -12,4 +12,4 @@ IF EXIST config.local.json (
 )
 
 procgov.exe --maxmem 10G --maxcpurate 75 --recursive ^
-    cmd /c "CALL .venv\Scripts\activate.bat && freqtrade trade !CONFIG_ARGS! --strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data\strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data\freqai_models --dry-run --dry-run-wallet 10000"
+    cmd /c "CALL .venv\Scripts\activate.bat && python -m freqtrade trade !CONFIG_ARGS! --strategy FreqAiAdaptiveRollingStrategy --user-data-dir user_data --strategy-path user_data\strategies --freqaimodel LightGBMClassifierCPU --freqaimodel-path user_data\freqai_models --dry-run --dry-run-wallet 10000"
