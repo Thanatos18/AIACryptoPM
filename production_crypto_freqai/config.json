@@ -12,6 +12,7 @@
         "entry": "any",
         "exit": "any"
     },
+    "cancel_open_orders_on_exit": true,
     "exchange": {
         "name": "binance",
         "key": "YOUR_EXCHANGE_API_KEY_PLACEHOLDER",

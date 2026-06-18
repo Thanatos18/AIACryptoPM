@@ -42,6 +42,7 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
     INTERFACE_VERSION = 3
     can_short = False
     timeframe = "15m"
+    process_only_new_candles = True
     startup_candle_count: int = 300
 
     # Minimal ROI (Return On Investment) table:
@@ -111,9 +112,9 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         """
         # 1. Momentum Indicators
         if TALIB_AVAILABLE:
-            dataframe[f"%-rsi-{period}"] = talib.RSI(dataframe, timeperiod=period)
-            dataframe[f"%-williams_r-{period}"] = talib.WILLR(dataframe, timeperiod=period)
-            dataframe[f"%-roc-{period}"] = talib.ROC(dataframe, timeperiod=period)
+            dataframe[f"%-rsi-{period}"] = pd.Series(talib.RSI(dataframe, timeperiod=period), index=dataframe.index)
+            dataframe[f"%-williams_r-{period}"] = pd.Series(talib.WILLR(dataframe, timeperiod=period), index=dataframe.index)
+            dataframe[f"%-roc-{period}"] = pd.Series(talib.ROC(dataframe, timeperiod=period), index=dataframe.index)
         elif TA_AVAILABLE:
             dataframe[f"%-rsi-{period}"] = ta.momentum.rsi(dataframe["close"], window=period)
             dataframe[f"%-williams_r-{period}"] = ta.momentum.williams_r(dataframe["high"], dataframe["low"], dataframe["close"], lbp=period)
@@ -135,6 +136,9 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         # 2. Volatility Indicators (Bollinger Bands)
         if TALIB_AVAILABLE:
             upper, middle, lower = talib.BBANDS(dataframe["close"], timeperiod=period, nbdevup=2.0, nbdevdn=2.0)
+            upper = pd.Series(upper, index=dataframe.index)
+            middle = pd.Series(middle, index=dataframe.index)
+            lower = pd.Series(lower, index=dataframe.index)
             dataframe[f"%-bb_width-{period}"] = (upper - lower) / middle.replace(0, np.nan)
             dataframe[f"%-bb_pb-{period}"] = (dataframe["close"] - lower) / (upper - lower).replace(0, np.nan)
         elif TA_AVAILABLE and period >= 10:
@@ -167,9 +171,9 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         # 2. MACD Trend
         if TALIB_AVAILABLE:
             macd_line, macd_signal, macd_hist = talib.MACD(dataframe["close"])
-            dataframe["%-macd-line"] = macd_line
-            dataframe["%-macd-signal"] = macd_signal
-            dataframe["%-macd-hist"] = macd_hist
+            dataframe["%-macd-line"] = pd.Series(macd_line, index=dataframe.index)
+            dataframe["%-macd-signal"] = pd.Series(macd_signal, index=dataframe.index)
+            dataframe["%-macd-hist"] = pd.Series(macd_hist, index=dataframe.index)
         elif TA_AVAILABLE:
             macd = ta.trend.MACD(dataframe["close"])
             dataframe["%-macd-line"] = macd.macd()
@@ -246,6 +250,7 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         """
         # Execute standard FreqAI wrapper if enabled
         if self.freqai_info.get("enabled", False):
+            logger.info(f"DF Columns before FreqAI start: {list(dataframe.columns)}")
             dataframe = self.freqai.start(dataframe, metadata, self)
         else:
             # Fallback local indicator calculation if running in standalone debug mode

@@ -45,7 +45,7 @@ class ClassifierWrapper:
 
     @property
     def classes_(self):
-        return np.array([-1, 0, 1])
+        return np.array(["-1", "0", "1"])
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -110,15 +110,17 @@ class LightGBMClassifierCPU(BaseClassifierModel):
                 feat_dict = dict(zip(model.feature_name_, [float(x) for x in model.feature_importances_]))
                 sorted_feats = dict(sorted(feat_dict.items(), key=lambda item: item[1], reverse=True))
                 
-                parent_models_dir = Path("user_data/models")
+                parent_models_dir = (
+                    dk.full_path.parent if hasattr(dk, "full_path") else Path("user_data/models")
+                )
                 parent_models_dir.mkdir(parents=True, exist_ok=True)
                 
                 pair_id = dk.pair.replace("/", "_") if hasattr(dk, "pair") else "general"
                 
                 timestamp = int(time.time())
-                if hasattr(dk, "data_path") and "_" in dk.data_path:
+                if hasattr(dk, "data_path") and "_" in str(dk.data_path):
                     try:
-                        timestamp = int(dk.data_path.split("_")[-1])
+                        timestamp = int(str(dk.data_path).split("_")[-1])
                     except ValueError:
                         pass
                 
@@ -141,5 +143,15 @@ class LightGBMClassifierCPU(BaseClassifierModel):
         del X_train, y_train
         gc.collect()
         
+        # Ensure dk.data has class labels initialized to avoid KeyError/AttributeError in data_drawer
+        if hasattr(dk, "data"):
+            if "labels_mean" not in dk.data:
+                dk.data["labels_mean"] = {}
+            if "labels_std" not in dk.data:
+                dk.data["labels_std"] = {}
+            for class_label in ["-1", "0", "1"]:
+                dk.data["labels_mean"][class_label] = 0.0
+                dk.data["labels_std"][class_label] = 0.0
+
         # Return the wrapper to map predictions correctly
         return ClassifierWrapper(model)

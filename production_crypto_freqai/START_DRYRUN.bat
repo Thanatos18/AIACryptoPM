@@ -66,20 +66,22 @@ IF ERRORLEVEL 1 (
     TIMEOUT /T 5 /NOBREAK >nul
 )
 
-ECHO.
-ECHO [i] Starting FreqTrade Dry-Run and Streamlit Analytics in separate windows...
-ECHO.
-ECHO [i] FreqUI Dashboard: http://127.0.0.1:8080/
-ECHO [i] Login: freqtrader / ProductionHighlySecurePassword2026!
-ECHO.
-
-:: Start FreqTrade in a separate window
-START "FreqTrade Bot (Dry-Run)" cmd /k "CALL .venv\Scripts\activate.bat && python -m freqtrade trade !CONFIG_ARGS! !TRADE_ARGS! --dry-run --dry-run-wallet 10000"
-
 :: Start Streamlit Analytics Dashboard in a separate window
 START "Streamlit Analytics Dashboard" cmd /k "CALL .venv\Scripts\activate.bat && python -m streamlit run scripts/cpu_analytics_dashboard.py"
 
-ECHO [✔] Both services launched successfully!
-ECHO [i] You can close this window now. Both FreqTrade and Streamlit will continue running.
+ECHO [i] Starting FreqTrade Dry-Run in this window.
+ECHO [i] Logs are also written to: user_data\logs\freqtrade_dryrun.log
+ECHO [i] FreqUI Dashboard: http://127.0.0.1:8080/
+ECHO [i] Login: freqtrader / ProductionHighlySecurePassword2026!
+ECHO.
+ECHO [i] Press Ctrl+C once to stop the bot gracefully.
+ECHO.
+
+:: Run FreqTrade in THIS window so errors and the training loop are visible.
+:: Logs are mirrored to a dedicated dry-run log file.
+python -m freqtrade trade !CONFIG_ARGS! !TRADE_ARGS! --dry-run --dry-run-wallet 10000 --logfile user_data\logs\freqtrade_dryrun.log
+
+ECHO.
+ECHO [i] FreqTrade stopped. Review the log above or user_data\logs\freqtrade_dryrun.log.
 ECHO.
 PAUSE

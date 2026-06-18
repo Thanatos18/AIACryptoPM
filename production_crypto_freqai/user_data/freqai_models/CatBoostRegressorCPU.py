@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 # Attempt to import FreqTrade base classes
 try:
-    from freqtrade.freqai.base_models.BaseRegressor import BaseRegressor
+    try:
+        from freqtrade.freqai.base_models.BaseRegressor import BaseRegressor
+    except ImportError:
+        from freqtrade.freqai.base_models.BaseRegressionModel import BaseRegressionModel as BaseRegressor
     from freqtrade.freqai.data_kitchen import FreqaiDataKitchen
 except ImportError:
     logger.warning("FreqTrade modules not found. Using mock BaseRegressor for CatBoost standalone compatibility.")
@@ -100,16 +103,18 @@ class CatBoostRegressorCPU(BaseRegressor):
                 self.feature_importances_ = sorted_feats
                 
                 # Save to user_data/models/ for Streamlit analytics dashboard
-                parent_models_dir = Path("user_data/models")
+                parent_models_dir = (
+                    dk.full_path.parent if hasattr(dk, "full_path") else Path("user_data/models")
+                )
                 parent_models_dir.mkdir(parents=True, exist_ok=True)
                 
                 pair_id = dk.pair.replace("/", "_") if hasattr(dk, "pair") else "general"
                 
                 import time
                 timestamp = int(time.time())
-                if hasattr(dk, "data_path") and "_" in dk.data_path:
+                if hasattr(dk, "data_path") and "_" in str(dk.data_path):
                     try:
-                        timestamp = int(dk.data_path.split("_")[-1])
+                        timestamp = int(str(dk.data_path).split("_")[-1])
                     except ValueError:
                         pass
 
