@@ -48,6 +48,8 @@ class ClassifierWrapper:
         return np.array(["-1", "0", "1"])
 
     def __getattr__(self, name):
+        if "model" not in self.__dict__:
+            raise AttributeError("model attribute is not initialized")
         return getattr(self.model, name)
 
 
