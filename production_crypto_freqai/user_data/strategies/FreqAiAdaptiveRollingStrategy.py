@@ -250,7 +250,7 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         """
         # Execute standard FreqAI wrapper if enabled
         if self.freqai_info.get("enabled", False):
-            logger.info(f"DF Columns before FreqAI start: {list(dataframe.columns)}")
+            logger.debug(f"DF Columns before FreqAI start: {list(dataframe.columns)}")
             dataframe = self.freqai.start(dataframe, metadata, self)
         else:
             # Fallback local indicator calculation if running in standalone debug mode

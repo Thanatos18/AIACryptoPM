@@ -155,3 +155,21 @@ class LightGBMClassifierCPU(BaseClassifierModel):
 
         # Return the wrapper to map predictions correctly
         return ClassifierWrapper(model)
+
+    def predict(
+        self, unfiltered_df: pd.DataFrame, dk: FreqaiDataKitchen, **kwargs
+    ) -> tuple[pd.DataFrame, np.ndarray]:
+        """
+        Filter the prediction features data, predict with the model,
+        and calculate the max prediction confidence for classification.
+        """
+        (pred_df, dk.do_predict) = super().predict(unfiltered_df, dk, **kwargs)
+
+        # Calculate max prediction confidence from the class probability columns
+        prob_cols = [c for c in ["-1", "0", "1"] if c in pred_df.columns]
+        if prob_cols:
+            pred_df["&-direction_max_prediction_confidence"] = pred_df[prob_cols].max(axis=1)
+        else:
+            pred_df["&-direction_max_prediction_confidence"] = 0.0
+
+        return (pred_df, dk.do_predict)
