@@ -20,8 +20,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Parse CLI args for database file selection
-default_db = "tradesv3.sqlite"
+# Database candidates (dryrun preferred; live as fallback)
+DB_OPTIONS = {
+    "Dry-Run (Paper Trading)": "tradesv3.dryrun.sqlite",
+    "Live Trading":            "tradesv3.sqlite",
+}
 
 # Streamlit Page Setup
 st.set_page_config(
@@ -154,17 +157,48 @@ def render_dashboard() -> None:
 
     # Sidebar settings
     st.sidebar.title("Telemetry Settings")
+
+    # DB selector — default to dry-run since that's what START_DRYRUN.bat uses
+    available_dbs = {label: path for label, path in DB_OPTIONS.items() if Path(path).exists()}
+    if not available_dbs:
+        # Absolute fallback if run from a different cwd
+        available_dbs = DB_OPTIONS
+    default_label = next(
+        (lbl for lbl, path in available_dbs.items() if "dryrun" in path),
+        next(iter(available_dbs))
+    )
+    selected_label = st.sidebar.selectbox(
+        "📂 Database Source",
+        options=list(available_dbs.keys()),
+        index=list(available_dbs.keys()).index(default_label),
+        help="Dry-Run uses tradesv3.dryrun.sqlite. Live uses tradesv3.sqlite."
+    )
+    selected_db = available_dbs[selected_label]
+
+    # Show DB file freshness
+    db_path = Path(selected_db)
+    if db_path.exists():
+        import datetime
+        mtime = datetime.datetime.fromtimestamp(db_path.stat().st_mtime)
+        st.sidebar.caption(f"🕐 Last updated: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+    else:
+        st.sidebar.warning(f"⚠️ DB not found: {selected_db}")
+
     show_full_history = st.sidebar.checkbox(
-        "Show full trade history", 
-        value=False, 
+        "Show full trade history",
+        value=False,
         help="If unchecked, loads only the last 30 days of closed trades to conserve memory."
     )
 
     # Load Telemetry
-    df = load_trades_data(default_db, limit_30_days=not show_full_history)
+    df = load_trades_data(selected_db, limit_30_days=not show_full_history)
 
     if df.empty:
-        st.warning(f"⚠️ No trades found in '{default_db}'. Please ensure your FreqTrade bot is running and trading to populate the database.")
+        st.warning(
+            f"⚠️ No trades found in **{selected_db}** yet.\n\n"
+            "The bot needs to complete its first training cycle and execute trades before data appears here. "
+            "This is normal on a fresh start — FreqAI trains for ~45 days of historical data first."
+        )
         return
 
     # Split open vs closed trades
