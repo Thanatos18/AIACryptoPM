@@ -48,9 +48,16 @@ class ClassifierWrapper:
         return np.array(["-1", "0", "1"])
 
     def __getattr__(self, name):
-        if name in ("model", "__dict__", "__setstate__", "__getstate__"):
-            raise AttributeError(f"Attribute {name} is not initialized or delegated")
-        return getattr(self.model, name)
+        # Use object.__getattribute__ to safely access __dict__ without triggering
+        # __getattr__ recursively (which would happen if __dict__ is not yet set
+        # during cloudpickle/pickle deserialization).
+        try:
+            instance_dict = object.__getattribute__(self, "__dict__")
+        except AttributeError:
+            raise AttributeError(f"ClassifierWrapper has no attribute '{name}' (not yet initialized)")
+        if "model" not in instance_dict:
+            raise AttributeError(f"ClassifierWrapper 'model' not initialized; cannot delegate '{name}'")
+        return getattr(instance_dict["model"], name)
 
 
 class LightGBMClassifierCPU(BaseClassifierModel):
