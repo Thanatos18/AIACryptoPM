@@ -45,7 +45,10 @@ class ClassifierWrapper:
 
     @property
     def classes_(self):
-        return np.array(["-1", "0", "1"])
+        # Must match the integer values that predict() returns (preds - 1 = [-1, 0, 1]).
+        # Using strings here caused a type mismatch: FreqAI uses classes_ to name prob
+        # columns and to decode numeric predictions back to labels.
+        return np.array([-1, 0, 1])
 
     def __getattr__(self, name):
         # Use object.__getattribute__ to safely access __dict__ without triggering
@@ -175,7 +178,8 @@ class LightGBMClassifierCPU(BaseClassifierModel):
         (pred_df, dk.do_predict) = super().predict(unfiltered_df, dk, **kwargs)
 
         # Calculate max prediction confidence from the class probability columns
-        prob_cols = [c for c in ["-1", "0", "1"] if c in pred_df.columns]
+        # Probability columns are named by classes_ values, which are now integers [-1, 0, 1]
+        prob_cols = [c for c in [-1, 0, 1] if c in pred_df.columns]
         if prob_cols:
             pred_df["&-direction_max_prediction_confidence"] = pred_df[prob_cols].max(axis=1)
         else:
