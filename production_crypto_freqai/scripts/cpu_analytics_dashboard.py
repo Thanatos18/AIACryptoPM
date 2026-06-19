@@ -66,7 +66,12 @@ def load_trades_data(db_path: str = "tradesv3.sqlite", limit_30_days: bool = Tru
         # Build query: limit to last 30 days if limit_30_days is True
         where_clause = ""
         if limit_30_days:
-            where_clause = "WHERE (close_date IS NULL) OR (close_date >= datetime('now', '-30 days'))"
+            # Fix: open trades must use open_date (they have no close_date).
+            # Previously used close_date IS NULL which included ALL open trades regardless of age.
+            where_clause = (
+                "WHERE (close_date IS NOT NULL AND close_date >= datetime('now', '-30 days')) "
+                "OR (close_date IS NULL AND open_date >= datetime('now', '-30 days'))"
+            )
             
         query = f"""
             SELECT id, exchange, pair, is_open, open_rate, close_rate,
@@ -190,6 +195,16 @@ def render_dashboard() -> None:
         help="If unchecked, loads only the last 30 days of closed trades to conserve memory."
     )
 
+    # Sidebar: wallet size input so PnL%, Sharpe, and Calmar reflect the correct base
+    initial_wallet = st.sidebar.number_input(
+        "💰 Initial Wallet (USDT)",
+        min_value=100.0,
+        max_value=1_000_000.0,
+        value=10_000.0,
+        step=500.0,
+        help="Set this to match your dry_run_wallet / starting balance in config.json."
+    )
+
     # Load Telemetry
     df = load_trades_data(selected_db, limit_30_days=not show_full_history)
 
@@ -219,14 +234,35 @@ def render_dashboard() -> None:
         losses = closed_trades[closed_trades["close_profit"] < 0]
         win_rate = (len(wins) / len(closed_trades)) * 100.0 if len(closed_trades) > 0 else 0.0
         
-        profit_factor = wins["close_profit_abs"].sum() / abs(losses["close_profit_abs"].sum()) if abs(losses["close_profit_abs"].sum()) > 0 else 99.0
+        profit_factor_val = (
+            wins["close_profit_abs"].sum() / abs(losses["close_profit_abs"].sum())
+            if abs(losses["close_profit_abs"].sum()) > 0
+            else None  # Not enough data — avoid the misleading 99.0 default
+        )
         
         dd_series, max_dd = compute_drawdown(closed_trades["equity"])
         closed_trades["drawdown"] = dd_series
-        
-        # Approximate Annualized Sharpe Ratio (assuming ~15 trades / week)
-        returns = closed_trades["close_profit"]
-        sharpe_ratio = (returns.mean() / returns.std()) * np.sqrt(730) if returns.std() > 0 else 0.0
+
+        # Sharpe Ratio — computed on DAILY equity returns, annualized with sqrt(252).
+        # Using per-trade returns × sqrt(730) was statistically wrong: it assumed one
+        # trade per candle which overstated/understated the ratio by trade frequency.
+        if "close_date" in closed_trades.columns and len(closed_trades) > 1:
+            eq_daily = (
+                closed_trades.set_index("close_date")["equity"]
+                .resample("1D")
+                .last()
+                .dropna()
+                .pct_change()
+                .dropna()
+            )
+            sharpe_ratio = (
+                (eq_daily.mean() / eq_daily.std()) * np.sqrt(252)
+                if len(eq_daily) > 1 and eq_daily.std() > 0
+                else 0.0
+            )
+        else:
+            sharpe_ratio = 0.0
+
         calmar_ratio = (total_pnl_pct / abs(max_dd)) if abs(max_dd) > 0 else 0.0
 
         # Top Level Metric Cards
@@ -240,9 +276,11 @@ def render_dashboard() -> None:
         with cols[3]:
             st.metric("Max Drawdown", f"{max_dd:.2f}%", f"Calmar: {calmar_ratio:.2f}")
         with cols[4]:
-            st.metric("Profit Factor", f"{profit_factor:.2f}")
+            pf_display = f"{profit_factor_val:.2f}" if profit_factor_val is not None else "N/A"
+            pf_help = "" if profit_factor_val is not None else "No losing trades yet — insufficient data"
+            st.metric("Profit Factor", pf_display, pf_help or None)
         with cols[5]:
-            st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}", "OOS Benchmark")
+            st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}", "Daily-resampled, annualized")
 
         st.divider()
 

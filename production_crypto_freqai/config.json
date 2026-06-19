@@ -61,7 +61,7 @@
         "remove_pumps": false
     },
     "telegram": {
-        "enabled": true,
+        "enabled": false,
         "token": "YOUR_TELEGRAM_BOT_TOKEN_PLACEHOLDER",
         "chat_id": "YOUR_TELEGRAM_CHAT_ID_PLACEHOLDER",
         "notification_settings": {
@@ -74,7 +74,7 @@
             "exit_fill": "on",
             "canceling": "on"
         },
-        "reload": true,
+        "reload": false,
         "balance_dust_level": 0.01
     },
     "api_server": {
@@ -83,11 +83,11 @@
         "listen_port": 8080,
         "verbosity": "error",
         "enable_openapi": false,
-        "jwt_secret_key": "ProductionSuperSecretKey_CHANGE_ME",
-        "ws_token": "ProductionWsToken_CHANGE_ME",
+        "jwt_secret_key": "CHANGE_ME_SET_IN_CONFIG_LOCAL_JSON",
+        "ws_token": "CHANGE_ME_SET_IN_CONFIG_LOCAL_JSON",
         "CORS_origins": [],
         "username": "freqtrader",
-        "password": "ProductionHighlySecurePassword2026!"
+        "password": "CHANGE_ME_SET_IN_CONFIG_LOCAL_JSON"
     },
     "db_url": "sqlite:///tradesv3.sqlite",
     "logfile": "user_data/logs/freqtrade_production.log",

@@ -71,26 +71,33 @@ class LightGBMClassifierCPU(BaseClassifierModel):
 
     def fit(self, data_dictionary: Dict[str, Any], dk: FreqaiDataKitchen, **kwargs) -> Any:
         X_train = data_dictionary["train_features"]
-        
+
         # Multiclass labels must be in range [0, num_class-1]. Map [-1, 0, 1] to [0, 1, 2].
         y_train_raw = data_dictionary["train_labels"].values.ravel()
         y_train = y_train_raw + 1
-        
+
         train_weights = data_dictionary.get("train_weights")
 
+        # Read tunable hyperparams from freqai_config.json, like LightGBMRegressorCPU does.
+        # Classifier-critical params (objective, num_class, metric) are always enforced
+        # internally regardless of config — prevents misconfig if someone switches model types.
+        model_training_parameters = self.freqai_info.get("model_training_parameters", {})
+
         params = {
+            # --- Always enforced (classifier contract) ---
             "objective": "multiclass",
             "num_class": 3,
             "metric": "multi_logloss",
-            "n_estimators": 250,
-            "learning_rate": 0.05,
-            "num_leaves": 31,
-            "max_depth": 6,
-            "max_bin": 127,
-            "n_jobs": 4,
+            # --- Tunable via freqai_config.json model_training_parameters ---
+            "n_estimators": model_training_parameters.get("n_estimators", 250),
+            "learning_rate": model_training_parameters.get("learning_rate", 0.05),
+            "num_leaves": model_training_parameters.get("num_leaves", 31),
+            "max_depth": model_training_parameters.get("max_depth", 6),
+            "max_bin": model_training_parameters.get("max_bin", 127),
+            "n_jobs": model_training_parameters.get("n_jobs", 4),
             "device_type": "cpu",
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
+            "subsample": model_training_parameters.get("subsample", 0.8),
+            "colsample_bytree": model_training_parameters.get("colsample_bytree", 0.8),
             "class_weight": "balanced",
             "random_state": 42,
             "verbose": -1,

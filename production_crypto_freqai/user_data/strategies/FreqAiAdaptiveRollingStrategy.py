@@ -1,5 +1,6 @@
 import gc
 import logging
+from datetime import timezone, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
 import numpy as np
@@ -90,8 +91,10 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
     ]
 
     # 2. Hyperparameter Space (Can be swept via FreqTrade Hyperopt)
-    entry_return_threshold = DecimalParameter(0.005, 0.030, default=0.012, space="buy", optimize=True)
-    exit_return_threshold = DecimalParameter(-0.020, 0.000, default=-0.005, space="sell", optimize=True)
+    # Minimum ML prediction confidence required to open a position.
+    # Hyperopt-optimizable: 0.50 = accept any prediction, 0.80 = only very confident signals.
+    # Replaces the former dead `entry_return_threshold` param that was never wired into logic.
+    entry_confidence_threshold = DecimalParameter(0.50, 0.80, default=0.55, space="buy", optimize=True)
     volume_regime_multiplier = DecimalParameter(1.0, 2.0, default=1.2, space="buy", optimize=True)
 
     # Run in dry-run or live mode (introspected from FreqTrade config)
@@ -276,47 +279,39 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
             ml_condition = (
                 (dataframe["do_predict"] == 1) &
                 (dataframe[pred_col] == 1) &
-                (dataframe.get(proba_col, 0) > 0.55)
+                # Use the hyperopt-optimizable confidence threshold instead of hardcoded 0.55
+                (dataframe.get(proba_col, 0.0) > self.entry_confidence_threshold.value)
             )
             conditions.append(ml_condition)
         else:
-            # Fallback if ML signal is temporarily unavailable
-            logger.debug(
-                f"ML prediction column '{pred_col}' unavailable for {metadata.get('pair')}. "
-                "Using technical override."
+            # Fail-closed: NEVER enter positions when FreqAI predictions are unavailable.
+            # The old RSI fallback allowed trading without ML validation — a safety risk.
+            # This state occurs during initial training, model reload, or configuration errors.
+            logger.warning(
+                f"[SAFETY] FreqAI prediction column '{pred_col}' not available for "
+                f"{metadata.get('pair')} — skipping all entry signals until FreqAI is ready."
             )
-            rsi_col = next((c for c in dataframe.columns if "rsi" in c), None)
-            if rsi_col is None and "close" in dataframe.columns:
-                delta = dataframe["close"].diff()
-                gain = delta.where(delta > 0, 0.0).ewm(alpha=1.0 / 14, adjust=False).mean()
-                loss = (-delta.where(delta < 0, 0.0)).ewm(alpha=1.0 / 14, adjust=False).mean()
-                rsi = 100.0 - (100.0 / (1.0 + gain / loss.replace(0, np.nan)))
-            elif rsi_col is not None:
-                rsi = dataframe[rsi_col]
-            else:
-                rsi = None
-
-            if rsi is not None and "ema_50" in dataframe.columns:
-                tech_condition = (dataframe["close"] > dataframe["ema_50"]) & (rsi < 60)
-                conditions.append(tech_condition)
-            elif "ema_50" in dataframe.columns:
-                conditions.append(dataframe["close"] > dataframe["ema_50"])
+            return dataframe
 
         # 2. Structural Regime Protection Filters
         if "ema_50" in dataframe.columns and "ema_200" in dataframe.columns:
-            # Do not fight macro liquidation phases
+            # AND logic required: both conditions must hold simultaneously.
+            # OR was a confirmed loophole — with ema50<ema200 (bearish) but close>ema100
+            # (dead-cat bounce), the filter still passed, allowing entries into bear markets.
             trend_filter = (
-                (dataframe["ema_50"] > dataframe["ema_200"]) |
+                (dataframe["ema_50"] > dataframe["ema_200"]) &
                 (dataframe["close"] > dataframe["ema_100"])
             )
             conditions.append(trend_filter)
 
         # 3. Volume Liquidity Filter
         if "volume" in dataframe.columns:
-            # Calculate volume SMA inline to avoid temp column allocations
-            vol_sma = dataframe["volume"].rolling(20).mean()
+            # Guard: replace zero SMA with NaN so the comparison fails cleanly
+            # instead of passing (any non-zero volume > 0 would always be True).
+            vol_sma = dataframe["volume"].rolling(20).mean().replace(0, np.nan)
             volume_filter = (
-                dataframe["volume"] > (vol_sma * self.volume_regime_multiplier.value)
+                (dataframe["volume"] > (vol_sma * self.volume_regime_multiplier.value))
+                & vol_sma.notna()
             )
             conditions.append(volume_filter)
 
@@ -359,12 +354,43 @@ class FreqAiAdaptiveRollingStrategy(IStrategy):
         current_time: Any, entry_tag: Optional[str], side: str, **kwargs
     ) -> bool:
         """
-        Final safety execution gate executed right before real orders are dispatched to the exchange.
-        Enforces extensive production logging and dynamic validation.
+        Production safety gate: final validation before any real order is dispatched.
+        Checks for stale candle data and FreqAI prediction quality.
+        Returns False (blocks entry) on any validation failure.
         """
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+
+        if dataframe.empty:
+            logger.warning(f"[GATE] {pair}: No analyzed dataframe available — blocking entry.")
+            return False
+
+        last_candle = dataframe.iloc[-1].squeeze()
+
+        # 1. Stale candle guard: reject if last analyzed candle is older than 2 × timeframe
+        candle_dt = last_candle["date"]
+        if hasattr(candle_dt, "to_pydatetime"):
+            candle_dt = candle_dt.to_pydatetime()
+        if candle_dt.tzinfo is None:
+            candle_dt = candle_dt.replace(tzinfo=timezone.utc)
+        current_aware = current_time if current_time.tzinfo else current_time.replace(tzinfo=timezone.utc)
+        candle_age = current_aware - candle_dt
+        if candle_age > timedelta(minutes=30):  # 2 × 15m timeframe
+            logger.warning(
+                f"[GATE] {pair}: Last candle is {candle_age} stale — blocking entry to avoid filling on bad data."
+            )
+            return False
+
+        # 2. FreqAI prediction quality gate: do_predict=0 means FreqAI flagged uncertainty
+        if "do_predict" in last_candle.index and int(last_candle["do_predict"]) != 1:
+            logger.warning(
+                f"[GATE] {pair}: do_predict={last_candle.get('do_predict')} "
+                "— FreqAI flagged this candle as uncertain. Blocking entry."
+            )
+            return False
+
         logger.info(
-            f"🚀 [{self.mode_name}] Dispatched ENTRY Signal -> "
-            f"Pair: {pair} | Side: {side.upper()} | Rate: {rate} | Value: ~{rate * amount:.2f} USDT"
+            f"🚀 [{self.mode_name}] ENTRY approved → "
+            f"Pair: {pair} | Side: {side.upper()} | Rate: {rate:.6f} | Value: ~{rate * amount:.2f} USDT"
         )
         return True
 
