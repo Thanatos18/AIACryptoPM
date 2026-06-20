@@ -159,18 +159,21 @@ class LightGBMClassifierCPU(BaseClassifierModel):
         except Exception as e:
             logger.error(f"Failed to serialize feature importances: {e}", exc_info=True)
 
+        # Populate labels_mean / labels_std with string keys for all classifier classes.
+        # data_drawer.append_model_predictions() looks these up by label name after every
+        # prediction cycle. Keys MUST be strings because JSON round-trips integer keys as
+        # strings, and data_drawer uses the pred_df column names (which are string labels)
+        # as lookup keys. This must run before del X_train so it always executes.
+        if not hasattr(dk, "data") or dk.data is None:
+            dk.data = {}
+        dk.data.setdefault("labels_mean", {})
+        dk.data.setdefault("labels_std", {})
+        for class_label in ["-1", "0", "1"]:
+            dk.data["labels_mean"][class_label] = 0.0
+            dk.data["labels_std"][class_label] = 0.0
+
         del X_train, y_train
         gc.collect()
-        
-        # Ensure dk.data has class labels initialized to avoid KeyError/AttributeError in data_drawer
-        if hasattr(dk, "data"):
-            if "labels_mean" not in dk.data:
-                dk.data["labels_mean"] = {}
-            if "labels_std" not in dk.data:
-                dk.data["labels_std"] = {}
-            for class_label in ["-1", "0", "1"]:
-                dk.data["labels_mean"][class_label] = 0.0
-                dk.data["labels_std"][class_label] = 0.0
 
         # Return the wrapper to map predictions correctly
         return ClassifierWrapper(model)
@@ -183,6 +186,20 @@ class LightGBMClassifierCPU(BaseClassifierModel):
         and calculate the max prediction confidence for classification.
         """
         (pred_df, dk.do_predict) = super().predict(unfiltered_df, dk, **kwargs)
+
+        # Defensive guard: ensure labels_mean / labels_std always carry the correct string
+        # keys before data_drawer.append_model_predictions() runs its lookup.
+        # This is the critical fix for KeyError: '-1' — when FreqAI loads a cached model
+        # from disk, it restores dk.data from metadata.json. Old or incompatible saved
+        # models may have empty dicts or integer-keyed dicts, both of which cause a
+        # KeyError when data_drawer does dk.data["labels_mean"][label] with a string label.
+        if not hasattr(dk, "data") or dk.data is None:
+            dk.data = {}
+        dk.data.setdefault("labels_mean", {})
+        dk.data.setdefault("labels_std", {})
+        for class_label in ["-1", "0", "1"]:
+            dk.data["labels_mean"].setdefault(class_label, 0.0)
+            dk.data["labels_std"].setdefault(class_label, 0.0)
 
         # Calculate max prediction confidence from the class probability columns
         # Probability columns are named by classes_ values, which are now integers [-1, 0, 1]
